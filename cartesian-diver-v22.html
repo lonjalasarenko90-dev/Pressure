@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ДЕКАРТІВ ВОДОЛАЗ — Neon Void Studio</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --neon-cyan: #00ffff;
+    --neon-blue: #0080ff;
+    --neon-green: #00ff88;
+    --neon-red: #ff3366;
+    --neon-yellow: #ffee00;
+    --neon-purple: #cc44ff;
+    --bg: #020810;
+    --panel: rgba(0,20,40,0.85);
+    --glass: rgba(0,180,255,0.07);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--neon-cyan);
+    font-family: 'Share Tech Mono', monospace;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    user-select: none;
+  }
+
+  canvas {
+    display: block;
+    position: absolute;
+    top: 0; left: 0;
+    z-index: 1;
+  }
+
+  /* SCREENS */
+  .screen {
+    position: absolute; top:0; left:0;
+    width:100%; height:100%;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    z-index: 10;
+    transition: opacity 0.4s;
+  }
+  .screen.hidden { opacity:0; pointer-events:none; }
+
+  /* TITLE SCREEN */
+  #title-screen {
+    background: radial-gradient(ellipse at 50% 30%, rgba(0,100,200,0.25) 0%, var(--bg) 70%);
+  }
+
+  .logo {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(28px, 6vw, 64px);
+    font-weight: 900;
+    text-align: center;
+    line-height: 1.1;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, #00ffff, #0080ff, #00ff88);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 20px rgba(0,255,255,0.5));
+    margin-bottom: 8px;
+  }
+
+  .logo-sub {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(10px, 2vw, 16px);
+    color: rgba(0,255,255,0.5);
+    letter-spacing: 8px;
+    text-transform: uppercase;
+    margin-bottom: 40px;
+  }
+
+  .physics-label {
+    font-size: clamp(9px, 1.5vw, 12px);
+    color: rgba(0,255,136,0.6);
+    letter-spacing: 3px;
+    margin-bottom: 50px;
+    text-transform: uppercase;
+  }
+
+  .mode-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    width: min(480px, 90vw);
+    margin-bottom: 30px;
+  }
+
+  .mode-btn {
+    background: var(--glass);
+    border: 1px solid rgba(0,255,255,0.2);
+    border-radius: 8px;
+    padding: 18px 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .mode-btn::before {
+    content:'';
+    position:absolute; top:0; left:-100%; width:100%; height:100%;
+    background: linear-gradient(90deg, transparent, rgba(0,255,255,0.08), transparent);
+    transition: left 0.4s;
+  }
+  .mode-btn:hover::before { left:100%; }
+  .mode-btn:hover {
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 20px rgba(0,255,255,0.2), inset 0 0 20px rgba(0,255,255,0.05);
+    transform: translateY(-2px);
+  }
+
+  .mode-icon { font-size: 26px; margin-bottom: 8px; display:block; }
+  .mode-title {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(10px, 2vw, 13px);
+    color: var(--neon-cyan);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .mode-desc {
+    font-size: clamp(8px, 1.5vw, 10px);
+    color: rgba(0,255,255,0.5);
+    line-height: 1.4;
+  }
+
+  .neon-void-badge {
+    font-size: 10px;
+    color: rgba(0,255,255,0.3);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 10px;
+  }
+
+  /* HUD */
+  #hud {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: 12px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 10;
+    background: linear-gradient(180deg, rgba(2,8,16,0.9) 0%, transparent 100%);
+    pointer-events: none;
+  }
+
+  .hud-left, .hud-right { display:flex; gap:20px; align-items:center; }
+
+  .hud-item {
+    display:flex; flex-direction:column;
+    align-items:center;
+  }
+  .hud-label {
+    font-size: 9px;
+    color: rgba(0,255,255,0.4);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .hud-value {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(14px, 3vw, 20px);
+    color: var(--neon-cyan);
+    font-weight: 700;
+    line-height: 1;
+    text-shadow: 0 0 10px var(--neon-cyan);
+  }
+
+  .hud-center {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(10px, 2vw, 14px);
+    color: rgba(0,255,255,0.7);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  #back-btn {
+    position: absolute;
+    top: 12px; left: 18px;
+    z-index: 15;
+    background: none;
+    border: 1px solid rgba(0,255,255,0.3);
+    color: rgba(0,255,255,0.5);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 6px 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    pointer-events: auto;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  #back-btn:hover {
+    border-color: var(--neon-cyan);
+    color: var(--neon-cyan);
+    box-shadow: 0 0 10px rgba(0,255,255,0.2);
+  }
+
+  /* LEVEL MSG */
+  #level-msg {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    z-index: 20;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  #level-msg.show { opacity:1; }
+  #level-msg .msg-title {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(20px, 5vw, 48px);
+    font-weight: 900;
+    text-shadow: 0 0 30px currentColor;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+  }
+  #level-msg .msg-sub {
+    font-size: clamp(10px, 2vw, 14px);
+    color: rgba(255,255,255,0.6);
+    letter-spacing: 3px;
+    margin-top: 8px;
+    text-transform: uppercase;
+  }
+
+  /* DEPTH BAR */
+  #depth-bar-wrap {
+    position: absolute;
+    right: 14px;
+    top: 60px;
+    bottom: 60px;
+    width: 22px;
+    z-index: 10;
+    display:flex; flex-direction:column; align-items:center; gap:4px;
+  }
+  .depth-label {
+    font-size: 8px;
+    color: rgba(0,255,255,0.4);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+  }
+  #depth-bar {
+    flex:1;
+    width: 6px;
+    background: rgba(0,255,255,0.05);
+    border: 1px solid rgba(0,255,255,0.15);
+    border-radius: 3px;
+    position: relative;
+    overflow: hidden;
+  }
+  #depth-fill {
+    position: absolute;
+    bottom: 0; left:0; right:0;
+    background: linear-gradient(180deg, var(--neon-cyan), var(--neon-blue));
+    box-shadow: 0 0 8px var(--neon-cyan);
+    border-radius: 2px;
+    transition: height 0.1s;
+  }
+  #depth-marker {
+    position: absolute;
+    left: -8px; right: -8px;
+    height: 2px;
+    background: var(--neon-yellow);
+    box-shadow: 0 0 8px var(--neon-yellow);
+    transition: top 0.1s;
+  }
+
+  /* PRESSURE INDICATOR */
+  #pressure-wrap {
+    position: absolute;
+    left: 14px;
+    bottom: 60px;
+    z-index:10;
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+  }
+  .pressure-label {
+    font-size: 8px;
+    color: rgba(0,255,255,0.4);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  #pressure-ring {
+    width: 48px; height: 48px;
+    position: relative;
+  }
+  #pressure-ring svg { width:100%; height:100%; }
+  #pressure-ring .ring-bg { fill:none; stroke: rgba(0,255,255,0.1); stroke-width:4; }
+  #pressure-ring .ring-fill { fill:none; stroke: var(--neon-cyan); stroke-width:4; stroke-linecap:round;
+    stroke-dasharray: 126; stroke-dashoffset: 126;
+    transition: stroke-dashoffset 0.1s, stroke 0.1s;
+    transform-origin: center; transform: rotate(-90deg);
+  }
+
+  /* GAME OVER / WIN */
+  #end-screen {
+    background: rgba(2,8,16,0.95);
+    backdrop-filter: blur(10px);
+  }
+  .end-title {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(28px, 7vw, 72px);
+    font-weight: 900;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    text-shadow: 0 0 40px currentColor;
+  }
+  .end-stats {
+    display:flex; gap:30px; margin:20px 0 30px;
+    flex-wrap: wrap; justify-content:center;
+  }
+  .end-stat {
+    text-align:center;
+  }
+  .end-stat-val {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(22px, 5vw, 40px);
+    font-weight: 700;
+    color: var(--neon-cyan);
+    text-shadow: 0 0 15px var(--neon-cyan);
+  }
+  .end-stat-label {
+    font-size: 10px;
+    color: rgba(0,255,255,0.4);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .btn-row { display:flex; gap:14px; flex-wrap:wrap; justify-content:center; }
+  .action-btn {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(10px, 2vw, 13px);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 14px 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid;
+  }
+  .btn-primary {
+    background: rgba(0,255,255,0.1);
+    border-color: var(--neon-cyan);
+    color: var(--neon-cyan);
+  }
+  .btn-primary:hover {
+    background: rgba(0,255,255,0.2);
+    box-shadow: 0 0 20px rgba(0,255,255,0.3);
+    transform: translateY(-2px);
+  }
+  .btn-secondary {
+    background: transparent;
+    border-color: rgba(0,255,255,0.3);
+    color: rgba(0,255,255,0.5);
+  }
+  .btn-secondary:hover {
+    border-color: rgba(0,255,255,0.6);
+    color: rgba(0,255,255,0.8);
+  }
+
+  /* MOBILE HINT */
+  #touch-hint {
+    position: absolute;
+    bottom: 18px;
+    left:50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: rgba(0,255,255,0.3);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    z-index:10;
+    pointer-events:none;
+    white-space: nowrap;
+  }
+
+  /* ZONE indicator */
+  #zone-label {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(9px, 2vw, 12px);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    z-index: 10;
+    pointer-events: none;
+    opacity: 0.8;
+    transition: all 0.3s;
+    top: 52px;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<!-- TITLE -->
+<div class="screen" id="title-screen">
+  <div class="logo">Декартів<br>Водолаз</div>
+  <div class="logo-sub">Cartesian Diver</div>
+  <div class="physics-label">⚗ Реальна фізика &nbsp;·&nbsp; Архімед &nbsp;·&nbsp; Буйантність</div>
+
+  <div class="mode-grid">
+    <div class="mode-btn" onclick="startGame('precision')">
+      <span class="mode-icon">🎯</span>
+      <div class="mode-title">Точність</div>
+      <div class="mode-desc">Утримуй водолаза в цільовій зоні</div>
+    </div>
+    <div class="mode-btn" onclick="startGame('obstacles')">
+      <span class="mode-icon">⚡</span>
+      <div class="mode-title">Перешкоди</div>
+      <div class="mode-desc">Уникай мін і лазерів</div>
+    </div>
+    <div class="mode-btn" onclick="startGame('multi')">
+      <span class="mode-icon">🔬</span>
+      <div class="mode-title">Три Водолази</div>
+      <div class="mode-desc">Синхронізуй різні поплавки</div>
+    </div>
+    <div class="mode-btn" onclick="startGame('sprint')">
+      <span class="mode-icon">⏱</span>
+      <div class="mode-title">Спринт</div>
+      <div class="mode-desc">Дно і назад — якнайшвидше</div>
+    </div>
+  </div>
+  <div class="neon-void-badge">⬡ Neon Void Studio</div>
+</div>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div class="hud-left">
+    <div class="hud-item">
+      <span class="hud-label">Рахунок</span>
+      <span class="hud-value" id="hud-score">0</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">Рівень</span>
+      <span class="hud-value" id="hud-level">1</span>
+    </div>
+  </div>
+  <div class="hud-center" id="hud-mode-name">ТОЧНІСТЬ</div>
+  <div class="hud-right">
+    <div class="hud-item">
+      <span class="hud-label">Час</span>
+      <span class="hud-value" id="hud-time">0</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">Здоров'я</span>
+      <span class="hud-value" id="hud-lives" style="color:var(--neon-red)">3</span>
+    </div>
+  </div>
+</div>
+<button id="back-btn" class="hidden" onclick="goTitle()">← Меню</button>
+<div id="zone-label" class="hidden"></div>
+<div id="touch-hint" class="hidden"></div>
+
+<!-- DEPTH BAR -->
+<div id="depth-bar-wrap" class="hidden">
+  <span class="depth-label">Глибина</span>
+  <div id="depth-bar"><div id="depth-fill"></div><div id="depth-marker"></div></div>
+</div>
+
+<!-- PRESSURE RING -->
+<div id="pressure-wrap" class="hidden">
+  <div id="pressure-ring">
+    <svg viewBox="0 0 44 44">
+      <circle class="ring-bg" cx="22" cy="22" r="18"/>
+      <circle class="ring-fill" id="pressure-arc" cx="22" cy="22" r="18"/>
+    </svg>
+  </div>
+  <span class="pressure-label">Тиск</span>
+</div>
+
+<!-- LEVEL MSG -->
+<div id="level-msg">
+  <div class="msg-title" id="level-msg-title"></div>
+  <div class="msg-sub" id="level-msg-sub"></div>
+</div>
+
+<!-- END SCREEN -->
+<div class="screen hidden" id="end-screen">
+  <div class="end-title" id="end-title">МІСІЯ ПРОВАЛЕНА</div>
+  <div class="end-stats">
+    <div class="end-stat">
+      <div class="end-stat-val" id="end-score">0</div>
+      <div class="end-stat-label">Рахунок</div>
+    </div>
+    <div class="end-stat">
+      <div class="end-stat-val" id="end-level">1</div>
+      <div class="end-stat-label">Рівень</div>
+    </div>
+    <div class="end-stat">
+      <div class="end-stat-val" id="end-time">0s</div>
+      <div class="end-stat-label">Час</div>
+    </div>
+  </div>
+  <div class="end-fact" id="end-fact" style="font-size:11px;color:rgba(0,255,136,0.6);letter-spacing:2px;max-width:400px;text-align:center;margin-bottom:20px;line-height:1.7;text-transform:uppercase;"></div>
+  <div class="btn-row">
+    <button class="action-btn btn-primary" id="btn-retry" onclick="retryGame()">↻ Ще раз</button>
+    <button class="action-btn btn-secondary" onclick="goTitle()">⌂ Меню</button>
+  </div>
+</div>
+
+<script>
+// ===== AUDIO ENGINE =====
+const AC = new (window.AudioContext || window.webkitAudioContext)();
+function resumeAC() { if(AC.state==='suspended') AC.resume(); }
+
+function playTone(freq, type='sine', dur=0.15, vol=0.15, detune=0) {
+  try {
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.connect(g); g.connect(AC.destination);
+    o.type=type; o.frequency.value=freq; o.detune.value=detune;
+    g.gain.setValueAtTime(vol, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime+dur);
+    o.start(); o.stop(AC.currentTime+dur);
+  } catch(e){}
+}
+
+function playBubble() {
+  const freqs = [200,280,350,180];
+  freqs.forEach((f,i) => setTimeout(()=>playTone(f,'sine',0.08,0.06),i*30));
+}
+function playPressure(t) {
+  playTone(80+t*120,'sawtooth',0.05,0.04);
+}
+function playScore() {
+  [440,550,660,880].forEach((f,i)=>setTimeout(()=>playTone(f,'sine',0.1,0.12),i*60));
+}
+function playHit() {
+  playTone(80,'square',0.3,0.2);
+  setTimeout(()=>playTone(60,'square',0.3,0.15),80);
+}
+function playWin() {
+  [523,659,784,1047].forEach((f,i)=>setTimeout(()=>playTone(f,'triangle',0.3,0.15),i*80));
+}
+function playLevelUp() {
+  [440,494,523,587,659].forEach((f,i)=>setTimeout(()=>playTone(f,'sine',0.15,0.1),i*50));
+}
+
+// ===== CANVAS SETUP =====
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ===== GAME STATE =====
+let mode = null;
+let gameActive = false;
+let pressure = 0; // 0..1
+let score = 0;
+let level = 1;
+let lives = 3;
+let gameTime = 0;
+let frameId = null;
+let lastTime = 0;
+
+// Bottle bounds
+let bottleX, bottleW, bottleTop, bottleBottom;
+
+// Divers
+let divers = [];
+// Obstacles
+let obstacles = [];
+let obstacleTimer = 0;
+
+// For precision mode
+let targetZone = { y: 0, h: 0 }; // canvas y coords
+let holdTimer = 0;
+let holdRequired = 3.0;
+
+// For sprint mode
+let sprintPhase = 0; // 0=going down, 1=going up
+let sprintBestTime = null;
+let sprintStartT = 0;
+
+// Physics facts
+const FACTS = [
+  "Декартів водолаз демонструє принцип Архімеда: тіло тоне, якщо його середня густина більша за воду.",
+  "Підводні човни використовують баластні цистерни — заповнюють водою для занурення, продувають повітрям для спливання.",
+  "Принцип Паскаля: тиск, прикладений до рідини, передається рівномірно в усіх напрямках.",
+  "Тиск на глибині 10м = 2 атмосфери. Кожні 10м додають 1 атм.",
+  "Газоподібне повітря стискається під тиском — саме це стискає бульбашку у піпетці.",
+  "Риби регулюють глибину за допомогою плавального міхура — як наш водолаз!",
+  "Нейтральна плавучість — коли сила Архімеда = вазі тіла. Водолаз зависає на місці.",
+];
+
+// ===== DIVER CLASS =====
+class Diver {
+  constructor(id, waterFill=0.55, x=null) {
+    this.id = id;
+    this.waterFill = waterFill; // how much water initially (0.3..0.8)
+    this.bubbleSize = 1.0; // 1.0 = natural, <1 = compressed
+    this.y = bottleTop + 40;
+    this.vy = 0;
+    this.x = x || (bottleX + bottleW/2);
+    this.trail = [];
+    this.glowTimer = 0;
+    this.hitTimer = 0;
+    this.size = 18;
+    // Color per diver
+    const colors = ['#00ffff','#ff3366','#00ff88','#ffee00'];
+    this.color = colors[id % colors.length];
+  }
+
+  get density() {
+    // без тиску: 0.88 → впевнено спливає
+    // при повному тиску: 0.88 + 0.7 = 1.58 → різко тоне
+    return 0.88 + (1 - this.bubbleSize) * 0.70;
+  }
+
+  update(dt, pressure) {
+    // Pressure compresses bubble
+    this.bubbleSize = 1.0 - pressure * 0.7;
+
+    const rho = this.density;
+    const buoyancy = (1.0 - rho) * 2200;
+    const drag = -this.vy * 2.8;
+    const acc = buoyancy + drag;
+    this.vy += acc * dt;
+    this.vy = Math.max(-400, Math.min(400, this.vy));
+    this.y += this.vy * dt;
+
+    // Clamp
+    const minY = bottleTop + this.size + 2;
+    const maxY = bottleBottom - this.size - 2;
+    if(this.y < minY) { this.y=minY; this.vy=Math.abs(this.vy)*0.3; }
+    if(this.y > maxY) { this.y=maxY; this.vy=-Math.abs(this.vy)*0.3; }
+
+    // Trail
+    this.trail.push({x:this.x, y:this.y, a:0.4});
+    if(this.trail.length>16) this.trail.shift();
+    this.trail.forEach(p=>p.a*=0.92);
+
+    if(this.glowTimer>0) this.glowTimer-=dt;
+    if(this.hitTimer>0) this.hitTimer-=dt;
+  }
+
+  draw() {
+    // Trail
+    this.trail.forEach((p,i) => {
+      const r = this.size * (i/this.trail.length) * 0.5;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI*2);
+      ctx.fillStyle = this.color + Math.floor(p.a*80).toString(16).padStart(2,'0');
+      ctx.fill();
+    });
+
+    // Glow
+    const t = this.hitTimer > 0 ? 1 : (this.glowTimer > 0 ? 0.8 : 0.4);
+    const glowColor = this.hitTimer > 0 ? '#ff3366' : this.color;
+    ctx.shadowBlur = 20 * t;
+    ctx.shadowColor = glowColor;
+
+    // Body (pipette shape)
+    ctx.save();
+    ctx.translate(this.x, this.y);
+
+    // Rubber bulb
+    ctx.beginPath();
+    ctx.ellipse(0, -this.size*0.3, this.size*0.55, this.size*0.55, 0, 0, Math.PI*2);
+    ctx.fillStyle = this.hitTimer>0 ? '#ff3366' : this.color + 'aa';
+    ctx.fill();
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Air bubble inside bulb
+    const bubRad = this.size * 0.3 * this.bubbleSize;
+    ctx.beginPath();
+    ctx.arc(0, -this.size*0.3, bubRad, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(180,240,255,0.25)';
+    ctx.fill();
+
+    // Water level in bulb (visual)
+    const waterH = this.size * 0.5 * this.waterFill;
+    ctx.beginPath();
+    ctx.ellipse(0, -this.size*0.3 + waterH*0.3, this.size*0.45, waterH*0.6, 0, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(0,120,200,0.35)';
+    ctx.fill();
+
+    // Stem (glass tube)
+    ctx.beginPath();
+    ctx.roundRect(-4, this.size*0.1, 8, this.size*0.55, 2);
+    ctx.fillStyle = 'rgba(180,240,255,0.1)';
+    ctx.fill();
+    ctx.strokeStyle = this.color + '88';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Tip
+    ctx.beginPath();
+    ctx.moveTo(-3, this.size*0.65);
+    ctx.lineTo(3, this.size*0.65);
+    ctx.lineTo(1, this.size*0.8);
+    ctx.lineTo(-1, this.size*0.8);
+    ctx.closePath();
+    ctx.fillStyle = this.color + 'cc';
+    ctx.fill();
+
+    ctx.restore();
+    ctx.shadowBlur = 0;
+  }
+
+  get depthFraction() {
+    return (this.y - bottleTop) / (bottleBottom - bottleTop);
+  }
+}
+
+// ===== OBSTACLE CLASS =====
+class Obstacle {
+  constructor() {
+    this.type = Math.random() < 0.5 ? 'mine' : 'laser';
+    this.y = bottleTop + 30 + Math.random() * (bottleBottom - bottleTop - 60);
+    this.x = bottleX + bottleW/2;
+    this.timer = 0;
+    this.alive = true;
+    this.speed = 0;
+    if(this.type === 'laser') {
+      this.y = bottleTop + 30 + Math.random() * (bottleBottom - bottleTop - 60);
+      this.pulseTimer = Math.random()*3;
+      this.active = false;
+      this.activeTimer = 0;
+    } else {
+      this.vy = (Math.random()-0.5)*30;
+    }
+    this.size = this.type==='mine'?16:12;
+  }
+
+  update(dt) {
+    this.timer += dt;
+    if(this.type==='mine') {
+      this.y += this.vy*dt;
+      if(this.y<bottleTop+20 || this.y>bottleBottom-20) this.vy*=-1;
+    } else {
+      this.pulseTimer += dt;
+      this.active = Math.sin(this.pulseTimer*1.5) > 0.3;
+    }
+  }
+
+  draw() {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    if(this.type==='mine') {
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = '#ff3366';
+      ctx.beginPath();
+      ctx.arc(0,0,this.size,0,Math.PI*2);
+      ctx.fillStyle='rgba(255,30,80,0.2)';
+      ctx.fill();
+      ctx.strokeStyle='#ff3366';
+      ctx.lineWidth=2;
+      ctx.stroke();
+      // spikes
+      for(let i=0;i<6;i++){
+        const a=i/6*Math.PI*2+this.timer;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a)*this.size, Math.sin(a)*this.size);
+        ctx.lineTo(Math.cos(a)*(this.size+7), Math.sin(a)*(this.size+7));
+        ctx.strokeStyle='#ff3366';
+        ctx.lineWidth=1.5;
+        ctx.stroke();
+      }
+      // skull
+      ctx.font='bold 14px sans-serif';
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.fillStyle='#ff6688';
+      ctx.fillText('☢',0,0);
+    } else {
+      // Laser beam
+      const alpha = this.active ? 0.9 : 0.2;
+      ctx.shadowBlur = this.active ? 20 : 5;
+      ctx.shadowColor = `rgba(255,238,0,${alpha})`;
+      // horizontal laser line
+      ctx.restore();
+      ctx.save();
+      ctx.translate(0, this.y);
+      ctx.beginPath();
+      ctx.moveTo(bottleX+8, 0);
+      ctx.lineTo(bottleX+bottleW-8, 0);
+      ctx.strokeStyle = `rgba(255,238,0,${alpha})`;
+      ctx.lineWidth = this.active ? 3 : 1;
+      ctx.stroke();
+      // emitters
+      [bottleX+8, bottleX+bottleW-8].forEach(ex => {
+        ctx.beginPath();
+        ctx.arc(ex, 0, 5, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(255,238,0,${alpha})`;
+        ctx.fill();
+      });
+    }
+    ctx.restore();
+  }
+
+  collides(d) {
+    if(this.type==='mine') {
+      const dx=d.x-this.x, dy=d.y-this.y;
+      return Math.sqrt(dx*dx+dy*dy)<this.size+d.size*0.6;
+    } else {
+      if(!this.active) return false;
+      return Math.abs(d.y-this.y)<d.size*0.7;
+    }
+  }
+}
+
+// ===== PARTICLES =====
+let particles = [];
+function spawnParticles(x,y,color,n=8) {
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2;
+    const s=30+Math.random()*80;
+    particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,color,size:2+Math.random()*3});
+  }
+}
+function updateParticles(dt) {
+  particles=particles.filter(p=>{
+    p.x+=p.vx*dt; p.y+=p.vy*dt;
+    p.vy+=60*dt;
+    p.life-=dt*1.5;
+    return p.life>0;
+  });
+}
+function drawParticles() {
+  particles.forEach(p=>{
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+    ctx.fillStyle=p.color+Math.floor(p.life*255).toString(16).padStart(2,'0');
+    ctx.fill();
+  });
+}
+
+// ===== BOTTLE DRAWING =====
+function computeBottle() {
+  const bW = Math.min(W*0.45, 260);
+  bottleW = bW;
+  bottleX = W/2 - bW/2;
+  bottleTop = H*0.10;
+  bottleBottom = H*0.88;
+}
+
+function drawBottle() {
+  const t = performance.now()*0.001;
+  const bR = 12; // radius
+
+  // Water background
+  const wg = ctx.createLinearGradient(bottleX, bottleTop, bottleX, bottleBottom);
+  wg.addColorStop(0, 'rgba(0,40,80,0.9)');
+  wg.addColorStop(0.5, 'rgba(0,20,60,0.95)');
+  wg.addColorStop(1, 'rgba(0,60,100,0.9)');
+  ctx.fillStyle = wg;
+  ctx.beginPath();
+  ctx.roundRect(bottleX, bottleTop, bottleW, bottleBottom-bottleTop, bR);
+  ctx.fill();
+
+  // Animated water waves
+  for(let w=0;w<3;w++){
+    ctx.beginPath();
+    const wY = bottleTop+20+w*8;
+    for(let x=bottleX;x<=bottleX+bottleW;x+=4){
+      const y = wY + Math.sin((x*0.04)+t*(0.8+w*0.3))*4;
+      w===0&&x===bottleX ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+    ctx.strokeStyle=`rgba(0,200,255,${0.06-w*0.015})`;
+    ctx.lineWidth=2;
+    ctx.stroke();
+  }
+
+  // Rising bubbles
+  for(let b=0;b<5;b++){
+    const bx=bottleX+20+((b*137+t*30)%( bottleW-40));
+    const by=bottleBottom-30-((t*(25+b*7)+b*100)%(bottleBottom-bottleTop-60));
+    ctx.beginPath();
+    ctx.arc(bx,by,2+b%3,0,Math.PI*2);
+    ctx.strokeStyle='rgba(180,240,255,0.25)';
+    ctx.lineWidth=1;
+    ctx.stroke();
+  }
+
+  // Bottle glass (border)
+  ctx.beginPath();
+  ctx.roundRect(bottleX, bottleTop, bottleW, bottleBottom-bottleTop, bR);
+  ctx.strokeStyle='rgba(0,200,255,0.35)';
+  ctx.lineWidth=2;
+  ctx.stroke();
+
+  // Glass highlight
+  ctx.beginPath();
+  ctx.roundRect(bottleX+4, bottleTop+4, bottleW*0.15, bottleBottom-bottleTop-8, bR);
+  ctx.fillStyle='rgba(255,255,255,0.04)';
+  ctx.fill();
+
+  // Bottle cap
+  const capW=bottleW*0.35, capH=22;
+  const capX=W/2-capW/2;
+  ctx.beginPath();
+  ctx.roundRect(capX, bottleTop-capH, capW, capH+8, [8,8,0,0]);
+  ctx.fillStyle='rgba(0,80,120,0.9)';
+  ctx.fill();
+  ctx.strokeStyle='rgba(0,200,255,0.5)';
+  ctx.lineWidth=1.5;
+  ctx.stroke();
+}
+
+// ===== TARGET ZONE =====
+function drawTargetZone() {
+  if(mode!=='precision' && mode!=='multi') return;
+  const tz = targetZone;
+  // Pulsing
+  const pulse = 0.5+0.5*Math.sin(performance.now()*0.003);
+  ctx.fillStyle=`rgba(0,255,136,${0.06+pulse*0.06})`;
+  ctx.beginPath();
+  ctx.roundRect(bottleX+4, tz.y, bottleW-8, tz.h, 4);
+  ctx.fill();
+  ctx.strokeStyle=`rgba(0,255,136,${0.3+pulse*0.2})`;
+  ctx.lineWidth=1.5;
+  ctx.setLineDash([6,4]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Label
+  ctx.font=`9px 'Share Tech Mono', monospace`;
+  ctx.fillStyle=`rgba(0,255,136,${0.5+pulse*0.3})`;
+  ctx.textAlign='left';
+  ctx.textBaseline='middle';
+  ctx.fillText('▶ ЦІЛЬ', bottleX+bottleW+8, tz.y+tz.h/2);
+}
+
+// ===== LEVEL CONFIG =====
+const levelConfigs = {
+  precision: [
+    { targetH: 0.20, holdReq: 2.5, label:'Рівень 1 — Знайди зону' },
+    { targetH: 0.15, holdReq: 3.0, label:'Рівень 2 — Вузька мета' },
+    { targetH: 0.10, holdReq: 3.5, label:'Рівень 3 — Хірургічна точність' },
+    { targetH: 0.08, holdReq: 4.0, label:'Рівень 4 — МАЙСТЕР' },
+  ],
+  obstacles: [
+    { mines:1, lasers:0, label:'Рівень 1 — Перша міна' },
+    { mines:1, lasers:1, label:'Рівень 2 — Лазерна пастка' },
+    { mines:2, lasers:1, label:'Рівень 3 — Небезпечні води' },
+    { mines:2, lasers:2, label:'Рівень 4 — ХАОС' },
+    { mines:3, lasers:2, label:'Рівень 5 — АПОКАЛІПСИС' },
+  ],
+  multi: [
+    { diverCount:2, targetH:0.18, holdReq:2.5, label:'Рівень 1 — Двоє' },
+    { diverCount:2, targetH:0.12, holdReq:3.0, label:'Рівень 2 — Разом' },
+    { diverCount:3, targetH:0.15, holdReq:3.0, label:'Рівень 3 — Трійця' },
+    { diverCount:3, targetH:0.10, holdReq:3.5, label:'Рівень 4 — СИНХРОН' },
+  ],
+  sprint: [
+    { passes:1, label:'Рівень 1 — Один заплив' },
+    { passes:2, label:'Рівень 2 — Два заплива' },
+    { passes:3, label:'Рівень 3 — Три заплива' },
+  ]
+};
+
+function getLevelConfig() {
+  const configs = levelConfigs[mode];
+  return configs[Math.min(level-1, configs.length-1)];
+}
+
+function setupLevel() {
+  const cfg = getLevelConfig();
+  obstacles = [];
+  holdTimer = 0;
+  sprintPhase = 0;
+  sprintStartT = gameTime;
+
+  if(mode==='precision'||mode==='multi') {
+    const range = bottleBottom-bottleTop-100;
+    const tH = range * cfg.targetH;
+    const tY = bottleTop+50+Math.random()*(range-tH);
+    targetZone = {y:tY, h:tH};
+    holdRequired = cfg.holdReq;
+
+    const count = cfg.diverCount || 1;
+    divers = [];
+    const fills = [0.55, 0.52, 0.58];
+    for(let i=0;i<count;i++){
+      const xOff = (i-(count-1)/2)*35;
+      divers.push(new Diver(i, fills[i], W/2+xOff));
+    }
+  } else if(mode==='obstacles') {
+    divers=[new Diver(0,0.55)];
+    for(let m=0;m<(cfg.mines||0);m++) {
+      const o=new Obstacle(); o.type='mine'; obstacles.push(o);
+    }
+    for(let l=0;l<(cfg.lasers||0);l++) {
+      const o=new Obstacle(); o.type='laser'; obstacles.push(o);
+    }
+  } else if(mode==='sprint') {
+    divers=[new Diver(0,0.55)];
+    targetZone = {y: bottleBottom-50, h:40}; // bottom target
+  }
+
+  showLevelMsg(cfg.label,'');
+  playLevelUp();
+}
+
+function showLevelMsg(title, sub, duration=2000) {
+  const el=document.getElementById('level-msg');
+  document.getElementById('level-msg-title').textContent=title;
+  document.getElementById('level-msg-sub').textContent=sub;
+  el.querySelector('.msg-title').style.color=mode==='obstacles'?'#ff3366':'#00ffff';
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), duration);
+}
+
+// ===== SPRINT MODE TARGETS =====
+let sprintPasses = 0;
+let sprintTargetPhase = 0; // 0=bottom, 1=top
+
+function drawSprintTarget() {
+  if(mode!=='sprint') return;
+  const isBottom = sprintTargetPhase===0;
+  const tY = isBottom ? bottleBottom-50 : bottleTop+10;
+  const tH = 40;
+  const pulse=0.5+0.5*Math.sin(performance.now()*0.005);
+  ctx.fillStyle=`rgba(255,238,0,${0.08+pulse*0.08})`;
+  ctx.beginPath();
+  ctx.roundRect(bottleX+4,tY,bottleW-8,tH,4);
+  ctx.fill();
+  ctx.strokeStyle=`rgba(255,238,0,${0.5+pulse*0.3})`;
+  ctx.lineWidth=2;
+  ctx.setLineDash([6,4]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font=`bold 11px 'Share Tech Mono'`;
+  ctx.fillStyle=`rgba(255,238,0,${0.8+pulse*0.2})`;
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText(isBottom?'↓ ДНО':'↑ ВГОРУ', W/2, tY+tH/2);
+}
+
+// ===== MAIN GAME LOOP =====
+function gameLoop(ts) {
+  if(!gameActive) return;
+  const dt = Math.min((ts-lastTime)/1000, 0.05);
+  lastTime = ts;
+  gameTime += dt;
+
+  // Clear
+  ctx.clearRect(0,0,W,H);
+
+  // Background
+  const bg=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H));
+  bg.addColorStop(0,'#030f20');
+  bg.addColorStop(1,'#020810');
+  ctx.fillStyle=bg;
+  ctx.fillRect(0,0,W,H);
+
+  computeBottle();
+  drawBottle();
+  drawTargetZone();
+  drawSprintTarget();
+
+  // Update obstacles
+  obstacles.forEach(o=>o.update(dt));
+  obstacles.forEach(o=>o.draw());
+
+  // Update divers
+  divers.forEach(d=>d.update(dt,pressure));
+  divers.forEach(d=>d.draw());
+
+  // Particles
+  updateParticles(dt);
+  drawParticles();
+
+  // Update HUD elements
+  updateDepthBar();
+  updatePressureRing();
+
+  // Mode logic
+  if(mode==='precision'||mode==='multi') updatePrecisionMode(dt);
+  else if(mode==='obstacles') updateObstaclesMode(dt);
+  else if(mode==='sprint') updateSprintMode(dt);
+
+  // Time HUD
+  document.getElementById('hud-time').textContent=Math.floor(gameTime)+'s';
+
+  frameId = requestAnimationFrame(gameLoop);
+}
+
+function updatePrecisionMode(dt) {
+  const tz = targetZone;
+  let allIn = true;
+  divers.forEach(d=>{
+    const inZone = d.y>tz.y && d.y<(tz.y+tz.h);
+    if(!inZone) allIn=false;
+    if(inZone) d.glowTimer=0.2;
+  });
+
+  if(allIn) {
+    holdTimer+=dt;
+    document.getElementById('zone-label').textContent=
+      `УТРИМУЙ: ${holdTimer.toFixed(1)}s / ${holdRequired.toFixed(1)}s`;
+    document.getElementById('zone-label').style.color='#00ff88';
+    if(holdTimer>=holdRequired) {
+      // Level complete
+      score+=Math.floor((holdRequired*100)+1000);
+      document.getElementById('hud-score').textContent=score;
+      playScore();
+      divers.forEach(d=>spawnParticles(d.x,d.y,d.color,15));
+      level++;
+      const configs=levelConfigs[mode];
+      if(level>configs.length) {
+        endGame(true);
+      } else {
+        holdTimer=0;
+        setupLevel();
+      }
+    }
+  } else {
+    holdTimer=Math.max(0,holdTimer-dt*0.5);
+    document.getElementById('zone-label').textContent='Потрапи у зону';
+    document.getElementById('zone-label').style.color='rgba(0,255,255,0.4)';
+  }
+}
+
+function updateObstaclesMode(dt) {
+  // Survival time = score
+  score = Math.floor(gameTime*10);
+  document.getElementById('hud-score').textContent=score;
+
+  // Level up every 15s
+  const newLevel = Math.floor(gameTime/15)+1;
+  if(newLevel>level) {
+    level=newLevel;
+    document.getElementById('hud-level').textContent=level;
+    const configs=levelConfigs.obstacles;
+    if(level<=configs.length) {
+      // Add more obstacles
+      const cfg=configs[Math.min(level-1,configs.length-1)];
+      obstacles=[];
+      for(let m=0;m<(cfg.mines||0);m++){const o=new Obstacle();o.type='mine';obstacles.push(o);}
+      for(let l=0;l<(cfg.lasers||0);l++){const o=new Obstacle();o.type='laser';obstacles.push(o);}
+      showLevelMsg(cfg.label,'');
+      playLevelUp();
+    }
+  }
+
+  // Collision — з invincibility window (hitTimer > 0 = неуразливий)
+  const d=divers[0];
+  if(d.hitTimer<=0) {
+    obstacles.forEach(o=>{
+      if(o.collides(d)) {
+        lives--;
+        document.getElementById('hud-lives').textContent=lives;
+        d.hitTimer=1.2; // 1.2s неуразливості після удару
+        spawnParticles(d.x,d.y,'#ff3366',20);
+        playHit();
+        // Reset obstacle position
+        o.y=bottleTop+30+Math.random()*(bottleBottom-bottleTop-60);
+        if(lives<=0) endGame(false);
+      }
+    });
+  }
+}
+
+function updateSprintMode(dt) {
+  const d=divers[0];
+  const cfg=getLevelConfig();
+  const passes=cfg.passes||1;
+
+  if(sprintTargetPhase===0) {
+    // Need to reach bottom
+    if(d.y>bottleBottom-55) {
+      spawnParticles(d.x,d.y,'#ffee00',10);
+      playScore();
+      sprintTargetPhase=1;
+    }
+  } else {
+    // Need to reach top
+    if(d.y<bottleTop+55) {
+      spawnParticles(d.x,d.y,'#00ff88',10);
+      playScore();
+      sprintPasses++;
+      score+=Math.max(0, Math.floor(5000-(gameTime-sprintStartT)*100));
+      document.getElementById('hud-score').textContent=score;
+      if(sprintPasses>=passes) {
+        endGame(true);
+      } else {
+        sprintTargetPhase=0;
+        sprintStartT=gameTime;
+      }
+    }
+  }
+  // Score = time bonus
+  document.getElementById('hud-score').textContent=score+Math.floor(gameTime*5);
+}
+
+// ===== DEPTH BAR =====
+function updateDepthBar() {
+  if(!divers.length) return;
+  const d=divers[0];
+  const frac=d.depthFraction;
+  document.getElementById('depth-fill').style.height=(frac*100)+'%';
+  // Target marker
+  if(mode==='precision'||mode==='multi') {
+    const tzFrac=(targetZone.y-bottleTop)/(bottleBottom-bottleTop);
+    document.getElementById('depth-marker').style.top=(tzFrac*100)+'%';
+    document.getElementById('depth-marker').style.display='block';
+  } else {
+    document.getElementById('depth-marker').style.display='none';
+  }
+}
+
+function updatePressureRing() {
+  const arc=document.getElementById('pressure-arc');
+  const circumference=126;
+  const offset=circumference-(pressure*circumference);
+  arc.style.strokeDashoffset=offset;
+  arc.style.stroke=pressure>0.7?'#ff3366':pressure>0.4?'#ffee00':'#00ffff';
+}
+
+// ===== INPUT =====
+let pressing=false;
+let prevPressing=false;
+
+function startPress(e) {
+  e.preventDefault();
+  resumeAC();
+  pressing=true;
+}
+function endPress(e) {
+  e.preventDefault();
+  pressing=false;
+}
+
+canvas.addEventListener('mousedown', startPress);
+canvas.addEventListener('mouseup', endPress);
+canvas.addEventListener('touchstart', startPress, {passive:false});
+canvas.addEventListener('touchend', endPress, {passive:false});
+window.addEventListener('keydown', e=>{
+  if((e.code==='Space'||e.code==='ArrowDown')&&gameActive){
+    e.preventDefault(); resumeAC(); pressing=true;
+  }
+});
+window.addEventListener('keyup', e=>{
+  if(e.code==='Space'||e.code==='ArrowDown') pressing=false;
+});
+
+function updatePressure(dt) {
+  const target=pressing?1:0;
+  const speed=pressing?5.5:4.0;
+  pressure+=(target-pressure)*speed*dt;
+  pressure=Math.max(0,Math.min(1,pressure));
+
+  // Instant kick on press/release for game feel
+  if(pressing && !prevPressing) {
+    divers.forEach(d => { d.vy += 280; }); // kick down
+    playPressure(0.8);
+  }
+  if(!pressing && prevPressing) {
+    divers.forEach(d => { d.vy -= 180; }); // kick up
+  }
+  prevPressing=pressing;
+
+  if(pressing&&Math.random()<0.04) playPressure(pressure);
+}
+
+// Wrap update into loop
+const origLoop=gameLoop;
+function gameLoopFull(ts) {
+  if(!gameActive) return;
+  const dt=Math.min((ts-lastTime)/1000,0.05);
+  lastTime=ts;
+  gameTime+=dt;
+  updatePressure(dt);
+
+  ctx.clearRect(0,0,W,H);
+  const bg=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H));
+  bg.addColorStop(0,'#030f20');
+  bg.addColorStop(1,'#020810');
+  ctx.fillStyle=bg;
+  ctx.fillRect(0,0,W,H);
+
+  computeBottle();
+  // Squeeze juice — пляшка стискається при тиску
+  const sqCY = (bottleTop+bottleBottom)/2;
+  ctx.save();
+  ctx.translate(W/2, sqCY);
+  ctx.scale(1 - pressure*0.045, 1 + pressure*0.03);
+  ctx.translate(-W/2, -sqCY);
+  drawBottle();
+  ctx.restore();
+  drawTargetZone();
+  drawSprintTarget();
+  obstacles.forEach(o=>o.update(dt));
+  obstacles.forEach(o=>o.draw());
+  divers.forEach(d=>d.update(dt,pressure));
+  divers.forEach(d=>d.draw());
+  updateParticles(dt);
+  drawParticles();
+  updateDepthBar();
+  updatePressureRing();
+
+  if(mode==='precision'||mode==='multi') updatePrecisionMode(dt);
+  else if(mode==='obstacles') updateObstaclesMode(dt);
+  else if(mode==='sprint') updateSprintMode(dt);
+
+  document.getElementById('hud-time').textContent=Math.floor(gameTime)+'s';
+  if(mode!=='sprint') document.getElementById('hud-score').textContent=score;
+
+  frameId=requestAnimationFrame(gameLoopFull);
+}
+
+// ===== GAME MANAGEMENT =====
+function startGame(m) {
+  mode=m;
+  gameActive=true;
+  score=0;
+  level=1;
+  lives=3;
+  gameTime=0;
+  pressure=0;
+  particles=[];
+  sprintPasses=0;
+  sprintTargetPhase=0;
+
+  computeBottle();
+  setupLevel();
+
+  // Show HUD
+  document.getElementById('title-screen').classList.add('hidden');
+  document.getElementById('end-screen').classList.add('hidden');
+  document.getElementById('hud').classList.remove('hidden');
+  document.getElementById('back-btn').classList.remove('hidden');
+  document.getElementById('depth-bar-wrap').classList.remove('hidden');
+  document.getElementById('pressure-wrap').classList.remove('hidden');
+  document.getElementById('zone-label').classList.remove('hidden');
+  document.getElementById('touch-hint').classList.remove('hidden');
+
+  const modeNames={precision:'ТОЧНІСТЬ',obstacles:'ПЕРЕШКОДИ',multi:'ТРИ ВОДОЛАЗИ',sprint:'СПРИНТ'};
+  document.getElementById('hud-mode-name').textContent=modeNames[mode]||'';
+  document.getElementById('hud-level').textContent=level;
+  document.getElementById('hud-lives').textContent=lives;
+  document.getElementById('hud-score').textContent=score;
+
+  const isMobile=/Mobi|Android/i.test(navigator.userAgent);
+  document.getElementById('touch-hint').textContent=
+    isMobile ? '● ТРИМАЙ екран — вниз | ВІДПУСКАЙ — вгору' :
+               '● ПРОБІЛ або ЛКМ — тиск | ВІДПУСТИ — вгору';
+
+  if(frameId) cancelAnimationFrame(frameId);
+  lastTime=performance.now();
+  frameId=requestAnimationFrame(gameLoopFull);
+}
+
+function retryGame() {
+  document.getElementById('end-screen').classList.add('hidden');
+  startGame(mode);
+}
+
+function goTitle() {
+  gameActive=false;
+  pressing=false;
+  if(frameId) cancelAnimationFrame(frameId);
+  document.getElementById('hud').classList.add('hidden');
+  document.getElementById('back-btn').classList.add('hidden');
+  document.getElementById('depth-bar-wrap').classList.add('hidden');
+  document.getElementById('pressure-wrap').classList.add('hidden');
+  document.getElementById('zone-label').classList.add('hidden');
+  document.getElementById('touch-hint').classList.add('hidden');
+  document.getElementById('end-screen').classList.add('hidden');
+  document.getElementById('level-msg').classList.remove('show');
+  document.getElementById('title-screen').classList.remove('hidden');
+  startIdleBackground();
+}
+
+function endGame(win) {
+  gameActive=false;
+  pressing=false;
+  if(frameId) cancelAnimationFrame(frameId);
+
+  const el=document.getElementById('end-screen');
+  const titleEl=document.getElementById('end-title');
+  titleEl.textContent=win?'МІСІЯ ВИКОНАНА':'МІСІЯ ПРОВАЛЕНА';
+  titleEl.style.color=win?'#00ff88':'#ff3366';
+
+  document.getElementById('end-score').textContent=score;
+  document.getElementById('end-level').textContent=level;
+  document.getElementById('end-time').textContent=Math.floor(gameTime)+'s';
+
+  const fact=FACTS[Math.floor(Math.random()*FACTS.length)];
+  document.getElementById('end-fact').textContent='💡 '+fact;
+
+  document.getElementById('hud').classList.add('hidden');
+  document.getElementById('back-btn').classList.add('hidden');
+  document.getElementById('depth-bar-wrap').classList.add('hidden');
+  document.getElementById('pressure-wrap').classList.add('hidden');
+  document.getElementById('zone-label').classList.add('hidden');
+  document.getElementById('touch-hint').classList.add('hidden');
+  el.classList.remove('hidden');
+
+  win ? playWin() : playHit();
+}
+
+// Draw idle background on title
+let idleFrameId = null;
+function drawIdleBackground() {
+  if(gameActive) { idleFrameId=null; return; }
+  ctx.clearRect(0,0,W,H);
+  const bg=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H));
+  bg.addColorStop(0,'#030f20');
+  bg.addColorStop(1,'#020810');
+  ctx.fillStyle=bg;
+  ctx.fillRect(0,0,W,H);
+  // Floating particles
+  const t=performance.now()*0.001;
+  for(let i=0;i<20;i++){
+    const x=((i*179+t*10)%W);
+    const y=((i*131+t*(5+i%4))%H);
+    ctx.beginPath();
+    ctx.arc(x,y,1.5,0,Math.PI*2);
+    ctx.fillStyle=`rgba(0,200,255,${0.1+0.1*Math.sin(t+i)})`;
+    ctx.fill();
+  }
+  idleFrameId=requestAnimationFrame(drawIdleBackground);
+}
+function startIdleBackground() {
+  if(idleFrameId) return; // already running
+  drawIdleBackground();
+}
+startIdleBackground();
+
+// Polyfill roundRect
+if(!CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){
+    if(typeof r==='number') r=[r,r,r,r];
+    else if(Array.isArray(r)&&r.length===1) r=[r[0],r[0],r[0],r[0]];
+    else if(Array.isArray(r)&&r.length===2) r=[r[0],r[1],r[0],r[1]];
+    this.moveTo(x+r[0],y);
+    this.arcTo(x+w,y,x+w,y+h,r[1]);
+    this.arcTo(x+w,y+h,x,y+h,r[2]);
+    this.arcTo(x,y+h,x,y,r[3]);
+    this.arcTo(x,y,x+w,y,r[0]);
+    return this;
+  };
+}
+</script>
+</body>
+</html>
